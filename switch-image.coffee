@@ -2,9 +2,12 @@ $ = jQuery
 defaults = 
   selector: 'img'
   targetSelector: 'img'
+  defaultState: 'mouseout'
   suffixes:
     mouseover: '-on'
     mouseout: ''
+  suffixSelectors: {}
+    # mouseover: '.hover'
   animation:
     on: {opacity: 1}
     off: {opacity: 0}
@@ -51,8 +54,9 @@ $.fn[namespace] = new jQueryWidget namespace, defaults,
         return unless $image.length > 0
         for k, suffix of that.options.suffixes
           if suffix then that.loadSuffix suffix, $image
+      @refresh(this)
     loadSuffix: (suffix, $image)->
-      src = $image.attr('src').replace(/\./, suffix + ".")
+      src = $image.attr('src').replace(/(@2x)?\./, "#{suffix}$1.")
       $image.css('z-index', 100)
       $switch = $("<img src='#{src}' class='#{@klass}'>")
         .css('zIndex', 0)
@@ -67,6 +71,16 @@ $.fn[namespace] = new jQueryWidget namespace, defaults,
         .css('position', 'relative')
         .append($switch)
       # console.log 'append'
+    refresh: ()->
+      that = this
+      @$el.find(@options.selector).each ->
+        switched = false
+        for state, selector of that.options.suffixSelectors
+          if $(this).is(selector)
+            switched = true
+            that.switch type: state, currentTarget: this
+        if !switched
+          that.switch type: that.options.defaultState, currentTarget: this
     switch: (e)->
       suffix = @options.suffixes[e.type]
       $el = $(e.currentTarget)
@@ -98,10 +112,12 @@ $.fn[namespace] = new jQueryWidget namespace, defaults,
       anim = @options.animation
       # console.log 'animate', suffix
       if anim.duration
-        $on.stop()
-        $on.animate anim.on, anim.duration, @options.easing.on || @options.easing if $on
-        $off.stop()
-        $off.animate anim.off, anim.duration, @options.easing.off || @options.easing if $off
+        if $on
+          $on.stop()
+          $on.animate anim.on, anim.duration, @options.easing.on || @options.easing
+        if $off
+          $off.stop()
+          $off.animate anim.off, anim.duration, @options.easing.off || @options.easing
       else
         $on.css anim.on if $on
         $off.css anim.off if $off

@@ -7,10 +7,12 @@
   defaults = {
     selector: 'img',
     targetSelector: 'img',
+    defaultState: 'mouseout',
     suffixes: {
       mouseover: '-on',
       mouseout: ''
     },
+    suffixSelectors: {},
     animation: {
       on: {
         opacity: 1
@@ -79,7 +81,7 @@
     SwitchImage.prototype.init = function() {
       var that;
       that = this;
-      return this.$el.find(this.options.selector).each(function() {
+      this.$el.find(this.options.selector).each(function() {
         var $image, k, suffix, _ref, _results;
         $image = $(this).find(that.options.targetSelector);
         if (!($image.length > 0)) {
@@ -97,11 +99,12 @@
         }
         return _results;
       });
+      return this.refresh(this);
     };
 
     SwitchImage.prototype.loadSuffix = function(suffix, $image) {
       var $switch, k, src, v, _ref;
-      src = $image.attr('src').replace(/\./, suffix + ".");
+      src = $image.attr('src').replace(/(@2x)?\./, "" + suffix + "$1.");
       $image.css('z-index', 100);
       $switch = $("<img src='" + src + "' class='" + this.klass + "'>").css('zIndex', 0).css('position', 'absolute').css('top', 0).css('left', 0);
       if (this.options.animation) {
@@ -113,6 +116,32 @@
       }
       $image.data(namespace, $switch);
       return $image.parent().css('position', 'relative').append($switch);
+    };
+
+    SwitchImage.prototype.refresh = function() {
+      var that;
+      that = this;
+      return this.$el.find(this.options.selector).each(function() {
+        var selector, state, switched, _ref;
+        switched = false;
+        _ref = that.options.suffixSelectors;
+        for (state in _ref) {
+          selector = _ref[state];
+          if ($(this).is(selector)) {
+            switched = true;
+            that["switch"]({
+              type: state,
+              currentTarget: this
+            });
+          }
+        }
+        if (!switched) {
+          return that["switch"]({
+            type: that.options.defaultState,
+            currentTarget: this
+          });
+        }
+      });
     };
 
     SwitchImage.prototype["switch"] = function(e) {
@@ -153,12 +182,12 @@
       }
       anim = this.options.animation;
       if (anim.duration) {
-        $on.stop();
         if ($on) {
+          $on.stop();
           $on.animate(anim.on, anim.duration, this.options.easing.on || this.options.easing);
         }
-        $off.stop();
         if ($off) {
+          $off.stop();
           return $off.animate(anim.off, anim.duration, this.options.easing.off || this.options.easing);
         }
       } else {
