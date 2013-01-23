@@ -1,22 +1,31 @@
+namespace = 'switchImage'
 $ = jQuery
 defaults = 
   selector: 'img'
   targetSelector: 'img'
   defaultState: 'mouseout'
+  events:
+    mouseover: 'on'
+    mouseout: 'off'
+    'switchImage:on': 'on'
+    'switchImage:off': 'off'
   suffixes:
-    mouseover: '-on'
-    mouseout: ''
+    on: '-on'
+    off: ''
+  classes:
+    on: "#{namespace}-on"
+    off: null
   suffixSelectors: {}
     # mouseover: '.hover'
   animation:
-    on: {opacity: 1}
-    off: {opacity: 0}
+    on: opacity: 1
+    off: opacity: 0
     duration: 600
   easing:
     on: 'easeOutQuad'
     off: 'easeInQuad'
+  # switchOthersTo: 'off'
 
-namespace = 'switchImage'
 $.fn[namespace] =
   defaults: defaults
 
@@ -43,8 +52,8 @@ $.fn[namespace] = new jQueryWidget namespace, defaults,
       # console.log 'SwitchImage', el, @options
       @$el = $(el)
       events = []
-      events.push k for k, v of @options.suffixes
-      @$el.find(@options.selector).on events.join(' '), $.proxy @switch, @
+      events.push k for k, v of @options.events
+      @$el.find(@options.selector).on events.join(' '), $.proxy @switchEvent, @
       @klass = "#{namespace}-switch"
       @init()
     init: ->
@@ -52,7 +61,8 @@ $.fn[namespace] = new jQueryWidget namespace, defaults,
       @$el.find(@options.selector).each ->
         $image = $(this).find that.options.targetSelector
         return unless $image.length > 0
-        for k, suffix of that.options.suffixes
+        for k, state of that.options.events
+          suffix = that.options.suffixes[state]
           if suffix then that.loadSuffix suffix, $image
       @refresh(this)
     loadSuffix: (suffix, $image)->
@@ -78,37 +88,51 @@ $.fn[namespace] = new jQueryWidget namespace, defaults,
         for state, selector of that.options.suffixSelectors
           if $(this).is(selector)
             switched = true
-            that.switch type: state, currentTarget: this
+            that.switchEvent type: state, currentTarget: this
         if !switched
-          that.switch type: that.options.defaultState, currentTarget: this
-    switch: (e)->
-      suffix = @options.suffixes[e.type]
-      $el = $(e.currentTarget)
+          that.switchEvent type: that.options.defaultState, currentTarget: this
+    switchEvent: (ev)->
+      state = @options.events[ev.type]
+      @switch(ev.currentTarget, state, ev)
+    switch: (el, state, ev = null, skipOthers = null)->
+      suffix = @options.suffixes[state]
+      $el = $(el)
       if $el.is @options.targetSelector
         $image = $el
       else
         $image = $el.find(@options.targetSelector).not(".#{@klass}")
       return unless $image.length > 0
       # console.log e.type
-      if e.type == 'mouseout' # don't switch if the mouse is over the image
+      if ev and (ev.type == 'mouseout') # don't switch if the mouse is over the image
         offset = $image.offset()
         offset.right = offset.left + $image.width()
         offset.bottom = offset.top + $image.height()
-        if e.pageX >= offset.left && e.pageX <= offset.right && e.pageY >= offset.top && e.pageY <= offset.bottom
+        if ev.pageX >= offset.left && ev.pageX <= offset.right && ev.pageY >= offset.top && ev.pageY <= offset.bottom
           # console.log 'skip'
           return
       $switch = $image.data(namespace)
       if $switch && $image.width() && !$switch.css('width')
         $switch.width($image.width()).height($image.height())
+      # if @options.switchOthersTo and not skipOthers
+      #   @$el.find(@options.targetSelector)
+      #     .filter(@options.classes[state]).each =>
+      #       @switch(this, @options.switchOthersTo, null, true)
       @doSwitch(suffix, $image, $switch)
     doSwitch: (suffix, $image, $switch)->
       # console.log suffix, $image, $switch
       if suffix
         $on = $switch
         $off = $image
+        addClass = @options.classes.on
+        removeClass = @options.classes.off
       else
         $on = $image
         $off = $switch
+        addClass = @options.classes.off
+        removeClass = @options.classes.on
+      $el = $image.closest(@options.selector)
+      $el.addClass addClass if addClass
+      $el.removeClass removeClass if removeClass
       anim = @options.animation
       # console.log 'animate', suffix
       if anim.duration

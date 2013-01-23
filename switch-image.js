@@ -2,15 +2,27 @@
 (function() {
   var $, SwitchImage, defaults, jQueryWidget, namespace;
 
+  namespace = 'switchImage';
+
   $ = jQuery;
 
   defaults = {
     selector: 'img',
     targetSelector: 'img',
     defaultState: 'mouseout',
+    events: {
+      mouseover: 'on',
+      mouseout: 'off',
+      'switchImage:on': 'on',
+      'switchImage:off': 'off'
+    },
     suffixes: {
-      mouseover: '-on',
-      mouseout: ''
+      on: '-on',
+      off: ''
+    },
+    classes: {
+      on: "" + namespace + "-on",
+      off: null
     },
     suffixSelectors: {},
     animation: {
@@ -27,8 +39,6 @@
       off: 'easeInQuad'
     }
   };
-
-  namespace = 'switchImage';
 
   $.fn[namespace] = {
     defaults: defaults
@@ -68,12 +78,12 @@
       this.options = options;
       this.$el = $(el);
       events = [];
-      _ref = this.options.suffixes;
+      _ref = this.options.events;
       for (k in _ref) {
         v = _ref[k];
         events.push(k);
       }
-      this.$el.find(this.options.selector).on(events.join(' '), $.proxy(this["switch"], this));
+      this.$el.find(this.options.selector).on(events.join(' '), $.proxy(this.switchEvent, this));
       this.klass = "" + namespace + "-switch";
       this.init();
     }
@@ -82,15 +92,16 @@
       var that;
       that = this;
       this.$el.find(this.options.selector).each(function() {
-        var $image, k, suffix, _ref, _results;
+        var $image, k, state, suffix, _ref, _results;
         $image = $(this).find(that.options.targetSelector);
         if (!($image.length > 0)) {
           return;
         }
-        _ref = that.options.suffixes;
+        _ref = that.options.events;
         _results = [];
         for (k in _ref) {
-          suffix = _ref[k];
+          state = _ref[k];
+          suffix = that.options.suffixes[state];
           if (suffix) {
             _results.push(that.loadSuffix(suffix, $image));
           } else {
@@ -129,14 +140,14 @@
           selector = _ref[state];
           if ($(this).is(selector)) {
             switched = true;
-            that["switch"]({
+            that.switchEvent({
               type: state,
               currentTarget: this
             });
           }
         }
         if (!switched) {
-          return that["switch"]({
+          return that.switchEvent({
             type: that.options.defaultState,
             currentTarget: this
           });
@@ -144,10 +155,22 @@
       });
     };
 
-    SwitchImage.prototype["switch"] = function(e) {
+    SwitchImage.prototype.switchEvent = function(ev) {
+      var state;
+      state = this.options.events[ev.type];
+      return this["switch"](ev.currentTarget, state, ev);
+    };
+
+    SwitchImage.prototype["switch"] = function(el, state, ev, skipOthers) {
       var $el, $image, $switch, offset, suffix;
-      suffix = this.options.suffixes[e.type];
-      $el = $(e.currentTarget);
+      if (ev == null) {
+        ev = null;
+      }
+      if (skipOthers == null) {
+        skipOthers = null;
+      }
+      suffix = this.options.suffixes[state];
+      $el = $(el);
       if ($el.is(this.options.targetSelector)) {
         $image = $el;
       } else {
@@ -156,11 +179,11 @@
       if (!($image.length > 0)) {
         return;
       }
-      if (e.type === 'mouseout') {
+      if (ev && (ev.type === 'mouseout')) {
         offset = $image.offset();
         offset.right = offset.left + $image.width();
         offset.bottom = offset.top + $image.height();
-        if (e.pageX >= offset.left && e.pageX <= offset.right && e.pageY >= offset.top && e.pageY <= offset.bottom) {
+        if (ev.pageX >= offset.left && ev.pageX <= offset.right && ev.pageY >= offset.top && ev.pageY <= offset.bottom) {
           return;
         }
       }
@@ -172,13 +195,24 @@
     };
 
     SwitchImage.prototype.doSwitch = function(suffix, $image, $switch) {
-      var $off, $on, anim;
+      var $el, $off, $on, addClass, anim, removeClass;
       if (suffix) {
         $on = $switch;
         $off = $image;
+        addClass = this.options.classes.on;
+        removeClass = this.options.classes.off;
       } else {
         $on = $image;
         $off = $switch;
+        addClass = this.options.classes.off;
+        removeClass = this.options.classes.on;
+      }
+      $el = $image.closest(this.options.selector);
+      if (addClass) {
+        $el.addClass(addClass);
+      }
+      if (removeClass) {
+        $el.removeClass(removeClass);
       }
       anim = this.options.animation;
       if (anim.duration) {
